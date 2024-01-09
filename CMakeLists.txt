@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Telos)
+project(Rheos)
 set(CMAKE_CXX_STANDARD 17)
 set(MY_COMPILER "default" CACHE STRING "Choose a compiler: 'emcc', or 'gcc'")
 
