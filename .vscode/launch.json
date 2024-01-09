@@ -4,7 +4,7 @@
             "name": "C/C++: build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/debug/Telos",
+            "program": "${workspaceFolder}/debug/Rheos",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -168,13 +168,13 @@ ImGuiIO &View::SetupImGui()
     std::string fontPathS;
 
 // Add a custom font if you want
-// #if !BUILDING_WITH_EMSCRIPTEN
-//     fontPathS = std::filesystem::current_path().string() + "/assets/Roboto/Roboto-Black.ttf";
-// #else
-//     fontPathS = "assets/Roboto/Roboto-Black.ttf";
-// #endif
+#if !BUILDING_WITH_EMSCRIPTEN
+    fontPathS = std::filesystem::current_path().string() + "/assets/Roboto/Roboto-Black.ttf";
+#else
+    fontPathS = "assets/Roboto/Roboto-Black.ttf";
+#endif
 
-//     io.Fonts->AddFontFromFileTTF(fontPathS.c_str(), 25.0f);
+    io.Fonts->AddFontFromFileTTF(fontPathS.c_str(), 25.0f);
 
     return io;
 }
