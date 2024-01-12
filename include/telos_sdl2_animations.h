@@ -17,6 +17,7 @@ struct Pixel
     Pixel(int x, int y, SDL_Color color) : x(x), y(y), color(color) {};
 };
 
+// Represents a coordinate. Can also be used to represent a vector
 struct Coordinate
 {
     Coordinate(int x, int y) : x(x), y(y){};

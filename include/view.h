@@ -37,18 +37,26 @@ public:
         return nullptr;
     }
     void Render(); // SETS UP SDL2, DEAR IMGUI, AND BEGINS THE RENDER & INPUT LOOPS
+    void Render_Model(SDL_Renderer* renderer);
+    void Render_Circle(SDL_Renderer* renderer, int rad, int xPos, int yPos, SDL_Color c);
+
+
+    void UI_ConstructMenuModule();
+    void UI_ChangeEngineParameters();
+
+    SDL_Color getParticleColor(const Particle &p);
 
     void CleanupSDL(SDL_Renderer *renderer, SDL_Window *window); // CLEANS UP SDL2 UPON APPLICATION EXIT
     void CleanupImGui();                                         // CLEANS UP IMGUI UPON APPLICATION EXIT
     ImGuiIO &SetupImGui();                                       // SETS UP IMGUI
 
-    void SDL_EventHandlingLoop(); // LOOP FOR SDL2 INPUTS (RUNS IN SEPARATE THREAD FROM IMGUI)
+    void SDL_EventHandlingLoop();               // LOOP FOR SDL2 INPUTS (RUNS IN SEPARATE THREAD FROM IMGUI)
     void SDL_ViewportHandler(SDL_Event &event); // ADD FUNCTIONS INTO THIS FUNCTION THAT HANDLES DIFFERENT INPUTS
 
     Controller *m_controller; // CONTROLLER INTERFACE TO MANIPULATE AND/OR RETRIEVE DATA FROM THE MODEL
 
     // SDL BOILERPLATE TO SET UP THE WINDOW AND RENDERER
-    int SCREEN_WIDTH = 1280, SCREEN_HEIGHT = 720;
+    int SCREEN_WIDTH = 1920, SCREEN_HEIGHT = 1080;
     int VIEW_POLLING_RATE = 60;
     int VIEW_INPUT_POLLING_RATE = 60;
     ImVec4 m_clearColor = TELOS_IMGUI_DARKGRAY;

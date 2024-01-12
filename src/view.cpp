@@ -16,7 +16,6 @@
 #include "emscripten_browser_clipboard.h"
 #endif
 
-
 View::View(Controller *controller)
 {
     this->m_controller = controller;
@@ -111,9 +110,7 @@ void View::Render()
             ImGui::NewFrame();
 
             // RENDER GUI HERE *************** *************** *************** *************** *************** ***************
-
-            ImGui::ShowDemoWindow();
-
+            UI_ConstructMenuModule();
             // RENDER GUI HERE *************** *************** *************** *************** *************** ***************
 
             // Rendering
@@ -124,6 +121,7 @@ void View::Render()
 
             // RENDER OBJECTS HERE *************** *************** *************** *************** *************** ***************
 
+            Render_Model(renderer);
 
             // RENDER OBJECTS HERE *************** *************** *************** *************** *************** ***************
 
@@ -140,6 +138,67 @@ void View::Render()
     CleanupImGui();
 }
 
+void View::Render_Model(SDL_Renderer *renderer)
+{
+    const std::vector<Particle> particles = m_controller->RetrieveModel_GetParticles();
+    for (int i = 0; i < particles.size(); i++)
+    {
+        const Particle &p = particles[i];
+        Render_Circle(renderer, p.rad, p.pos.x, p.pos.y, getParticleColor(p));
+    }
+}
+
+void View::Render_Circle(SDL_Renderer *renderer, int rad, int xPos, int yPos, SDL_Color c)
+{
+    filledCircleRGBA(renderer, xPos, yPos, rad, c.r, c.g, c.b, c.a);
+}
+
+void View::UI_ConstructMenuModule()
+{
+    ImGui::Begin("Menu");
+
+    ImGui::SetWindowPos(ImVec2(0, 0));
+    ImGui::SetWindowSize(ImVec2(SCREEN_WIDTH * 0.33, ImGui::GetIO().DisplaySize.y));
+    UI_ChangeEngineParameters();
+
+    ImGui::End();
+}
+
+void View::UI_ChangeEngineParameters()
+{
+    static float gravity = m_controller->RetrieveModel_GetGravity();
+    static float restingDensity = m_controller->RetrieveModel_GetRestingDensity();
+    static float pressureScaler = m_controller->RetrieveModel_GetPressureScaler();
+    static float radialInfluence = m_controller->RetrieveModel_GetRadialInfluence();
+
+    if (ImGui::SliderFloat("Gravity", &gravity, 0, 500))
+    {
+        m_controller->UpdateModel_ChangeGravity(gravity);
+    }
+
+    if (ImGui::SliderFloat("Pressure Scaler", &pressureScaler, 0, 500))
+    {
+        m_controller->UpdateModel_ChangePressureScaler(pressureScaler);
+    }
+
+    if (ImGui::SliderFloat("Resting Density", &restingDensity, 0, 5))
+    {
+        m_controller->UpdateModel_ChangeRestingDensity(restingDensity);
+    }
+
+    if (ImGui::SliderFloat("Radial Influence", &radialInfluence, 1, 500))
+    {
+        m_controller->UpdateModel_ChangeRadialInfluence(radialInfluence);
+    }
+}
+
+// Determines what the color of a fluid particle should be based on its velocity
+SDL_Color View::getParticleColor(const Particle &p)
+{
+    SDL_Color c;
+    c.r = c.g = c.b = c.a = 255;
+    return c;
+}
 
 void View::CleanupSDL(SDL_Renderer *renderer, SDL_Window *window)
 {
@@ -181,7 +240,6 @@ ImGuiIO &View::SetupImGui()
 
 void View::SDL_ViewportHandler(SDL_Event &event)
 {
-
 }
 
 void View::SDL_EventHandlingLoop()
