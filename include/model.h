@@ -17,7 +17,7 @@ public:
     float smoothingKernel(float rad, float dist);
 
     // Gets the density of the fluid at point 'p'
-    float getDensity(const Point &p);
+    float getDensity(const Particle &p);
 
     // Gets a scalar property of the fluid at point 'p'
     float getScalarProperty(const Point &p, int propertyIdx);
@@ -41,15 +41,22 @@ public:
     float getSharedPressure(float d1, float d2);
 
     // Gets the grid ID of a particle based on its location
-    int getGridID(Point location);
+    int getGridID(const Point &location);
+
+    // Initializes the particle grid
+    void initializeGrid();
+
+    // Updates the particle grid
+    void updateGrid();
+
+    std::vector<Particle*>& getInRangeParticles(const Particle& p);
 
 
     float m_gravity = 0;
     std::vector<Particle> m_particles;
 
-    int gridDim;
-    std::vector<std::vector<Particle*>> m_particleGrid;
-
+    std::vector<int> m_gridSize;
+    std::vector<std::vector<Particle *>> m_particleGrid;
 
     // Emscripten doesn't support std::thread for multithreading, only C-type pthread's. This will essentially be a pointer
     // to the run() function so we can actually pass it into pthread_create() in main.cpp
