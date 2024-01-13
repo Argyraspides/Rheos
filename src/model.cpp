@@ -27,6 +27,8 @@ Model::Model()
         float yPos = (i / maxColumns) * separation + yCenterOffset;
         m_particles.push_back(Particle({xPos, yPos}, {xPos, yPos}, {0, 0}));
     }
+
+    initializeGrid();
 }
 
 Model::~Model()
@@ -59,6 +61,14 @@ void Model::update()
     for (Particle &p : m_particles)
     {
         p.vel.y += m_gravity * ENGINE_TIME_STEP;
+        p.predPos = p.pos + p.vel;
+    }
+
+    updateGrid();
+
+#pragma omp parallel for
+    for (Particle &p : m_particles)
+    {
         p.prop[Particle::densityIdx] = getDensity(p.pos);
     }
 
@@ -206,7 +216,6 @@ float Model::getSharedPressure(float d1, float d2)
     return (pA + pB) / 2.0f;
 }
 
-
 // Handles particle wall collisions
 void Model::handleWallCollisions()
 {
@@ -232,6 +241,56 @@ void Model::handleWallCollisions()
         {
             particle.pos.y = Particle::rad;
             particle.vel.y *= -1.0f * collisionDamping;
+        }
+    }
+}
+
+iPoint Model::getGridCoo(const Point &loc)
+{
+    return iPoint(loc.x / Particle::smRad - 1, loc.y / Particle::smRad - 1, 0);
+}
+
+void Model::updateGrid()
+{
+
+    static int rows = xBounds / Particle::smRad;
+    static int cols = xBounds / Particle::smRad;
+
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            m_particleGridSizes[i][j] = 0;
+        }
+    }
+
+    for (int i = 0; i < m_particles.size(); i++)
+    {
+        iPoint gc = getGridCoo(m_particles[i].pos);
+        m_particleGrid[gc.x][gc.y][m_particleGridSizes[gc.x][gc.y]++] = &m_particles[i];
+    }
+}
+
+void Model::initializeGrid()
+{
+    static int rows = xBounds / Particle::smRad;
+    static int cols = xBounds / Particle::smRad;
+
+    for (int i = 0; i < rows; i++)
+    {
+        m_particleGridSizes.push_back(std::vector<int>(cols, 0));
+    }
+
+    for (int i = 0; i < rows; i++)
+    {
+        m_particleGrid.push_back(std::vector<std::vector<Particle *>>());
+        for (int j = 0; j < cols; j++)
+        {
+            m_particleGrid[i].push_back(std::vector<Particle *>());
+            for (int k = 0; k < m_particles.size(); k++)
+            {
+                m_particleGrid[i][j].push_back(nullptr);
+            }
         }
     }
 }

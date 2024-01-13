@@ -41,7 +41,7 @@ public:
     float getSharedPressure(float d1, float d2);
 
     // Gets the grid ID of a particle based on its location
-    int getGridID(const Point &location);
+    iPoint getGridCoo(const Point &location);
 
     // Initializes the particle grid
     void initializeGrid();
@@ -49,18 +49,11 @@ public:
     // Updates the particle grid
     void updateGrid();
 
-    std::vector<Particle *> &getInRangeParticles(const Particle &p);
-
-    void updateSpatialLookup();
-
-    iPoint posToCellCoo(const Point &p);
-
-    unsigned int hashCell(iPoint cell);
-
-    unsigned int getKeyFromHash(unsigned int hash);
 
     float m_gravity = 0;
     std::vector<Particle> m_particles;
+    std::vector<std::vector<std::vector<Particle*>>> m_particleGrid;
+    std::vector<std::vector<int>> m_particleGridSizes;
 
     // Emscripten doesn't support std::thread for multithreading, only C-type pthread's. This will essentially be a pointer
     // to the run() function so we can actually pass it into pthread_create() in main.cpp
@@ -75,5 +68,5 @@ public:
     float ENGINE_TIME_STEP = 1.0f / (float)ENGINE_POLLING_RATE;
     double m_time;
 
-    int xBounds = 1920, yBounds = 1080;
+    int xBounds = 1280, yBounds = 720;
 };
