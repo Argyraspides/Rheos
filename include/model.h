@@ -17,7 +17,7 @@ public:
     float smoothingKernel(float rad, float dist);
 
     // Gets the density of the fluid at point 'p'
-    float getDensity(const Particle &p);
+    float getDensity(const Point &p);
 
     // Gets a scalar property of the fluid at point 'p'
     float getScalarProperty(const Point &p, int propertyIdx);

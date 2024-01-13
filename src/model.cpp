@@ -8,7 +8,7 @@
 
 Model::Model()
 {
-    int particleCount = 2000;
+    int particleCount = 400;
     int maxColumns = 50;
 
     float separation = Particle::rad * 2;
@@ -26,10 +26,8 @@ Model::Model()
     {
         float xPos = (i % maxColumns) * separation + xCenterOffset;
         float yPos = (i / maxColumns) * separation + yCenterOffset;
-        m_particles.push_back(Particle({xPos, yPos}, {0, 0}));
+        m_particles.push_back(Particle({xPos, yPos}, {xPos, yPos}, {0, 0}));
     }
-
-    initializeGrid();
 }
 
 Model::~Model()
@@ -62,7 +60,7 @@ void Model::update()
     for (Particle &p : m_particles)
     {
         p.vel.y += m_gravity * ENGINE_TIME_STEP;
-        p.prop[Particle::densityIdx] = getDensity(p);
+        p.prop[Particle::densityIdx] = getDensity(p.pos);
     }
 
 #pragma omp parallel for
@@ -80,7 +78,6 @@ void Model::update()
     }
 
     handleWallCollisions();
-    updateGrid();
 }
 
 // Calculates the influence a particle has at a point 'dist' away from the particles center,
@@ -97,17 +94,12 @@ float Model::smoothingKernel(float rad, float dist)
 }
 
 // Get the density at a particle 'p'
-float Model::getDensity(const Particle &p)
+float Model::getDensity(const Point &p)
 {
     float density = 0.0f;
-    std::vector<Particle *> irp = getInRangeParticles(p);
-    int gridID = getGridID(p.pos);
-
-    int iterations = m_gridSize[gridID];
-
-    for (int i = 0; i < iterations; i++)
+    for (int i = 0; i < m_particles.size(); i++)
     {
-        float dist = Math::dist(p.pos, irp[i]->pos);
+        float dist = Math::dist(p, m_particles[i].pos);
         density += Particle::mass * smoothingKernel(Particle::smRad, dist);
     }
     return density;
@@ -176,18 +168,10 @@ Point Model::getNetGradient(const Point &v, const int &propertyIndex)
 Point Model::getPressureGradient(Particle &pC)
 {
     Point pressureGrad = {0.0f, 0.0f, 0.0f};
-    std::vector<Particle *> irp = getInRangeParticles(pC);
-
-    int gridID = getGridID(pC.pos);
-    if (gridID < 0)
-    {
-        int x = 7;
-    }
-    int iterations = m_gridSize[gridID];
-    for (int i = 0; i < iterations; i++)
+    for (int i = 0; i < m_particles.size(); i++)
     {
         // Get the distance from the current particle to the point in space we want to find the gradient of
-        float dist = (irp[i]->pos - pC.pos).magnitude();
+        float dist = (m_particles[i].pos - pC.pos).magnitude();
         Point dir;
 
         // If the particles are directly on top of each other we can just choose a random direction
@@ -199,7 +183,7 @@ Point Model::getPressureGradient(Particle &pC)
         else
         {
             // The actual direction vector
-            dir = (irp[i]->pos - pC.pos) / dist;
+            dir = (m_particles[i].pos - pC.pos) / dist;
         }
 
         dir.normalize();
@@ -207,10 +191,10 @@ Point Model::getPressureGradient(Particle &pC)
         // The rate of change of the property at this point
         float slope = getSmoothedKernelDerivative(Particle::smRad, dist);
         // Density of the current particle
-        float density = irp[i]->prop[Particle::densityIdx];
+        float density = m_particles[i].prop[Particle::densityIdx];
 
         float sharedP = getSharedPressure(density, pC.prop[Particle::densityIdx]);
-        pressureGrad = pressureGrad - dir * sharedP * slope * Particle::mass / irp[i]->prop[Particle::densityIdx];
+        pressureGrad = pressureGrad - dir * sharedP * slope * Particle::mass / m_particles[i].prop[Particle::densityIdx];
     }
     return pressureGrad;
 }
@@ -249,53 +233,5 @@ void Model::handleWallCollisions()
             particle.pos.y = Particle::rad;
             particle.vel.y *= -1.0f * collisionDamping;
         }
-    }
-}
-
-int Model::getGridID(const Point &location)
-{
-    int x = location.x / Particle::smRad;
-    int y = location.y / Particle::smRad;
-    int cols = yBounds / Particle::smRad;
-    return x + y * cols;
-}
-
-void Model::initializeGrid()
-{
-    int rows = xBounds / Particle::smRad;
-    int cols = yBounds / Particle::smRad;
-
-    int totalGridSquares = rows * cols;
-    m_particleGrid.resize(totalGridSquares);
-    for (int i = 0; i < totalGridSquares; i++)
-    {
-        m_particleGrid[i].resize(m_particles.size(), nullptr);
-    }
-
-    m_gridSize.resize(totalGridSquares, 0);
-
-    updateGrid();
-}
-
-std::vector<Particle *> &Model::getInRangeParticles(const Particle &p)
-{
-    return m_particleGrid[getGridID(p.pos)];
-}
-
-void Model::updateGrid()
-{
-
-    m_gridSize.assign(m_gridSize.size(), 0);
-
-    for (int i = 0; i < m_particles.size(); i++)
-    {
-        int gridID = getGridID(m_particles[i].pos);
-        Particle *ptr = &m_particles[i];
-        if (gridID < 0)
-        {
-            int x = 5;
-        }
-        m_particleGrid[gridID][m_gridSize[gridID]] = ptr;
-        m_gridSize[gridID]++;
     }
 }
