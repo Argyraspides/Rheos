@@ -20,7 +20,6 @@ Model::Model()
     int yCenterOffset = (yBounds - height) / 2;
 
     m_particles.reserve(particleCount);
-
     // Initialize all the particles in a grid
     for (int i = 0; i < particleCount; i++)
     {
@@ -206,6 +205,7 @@ float Model::getSharedPressure(float d1, float d2)
     float pB = densityToPressure(d2);
     return (pA + pB) / 2.0f;
 }
+
 
 // Handles particle wall collisions
 void Model::handleWallCollisions()

@@ -49,14 +49,18 @@ public:
     // Updates the particle grid
     void updateGrid();
 
-    std::vector<Particle*>& getInRangeParticles(const Particle& p);
+    std::vector<Particle *> &getInRangeParticles(const Particle &p);
 
+    void updateSpatialLookup();
+
+    iPoint posToCellCoo(const Point &p);
+
+    unsigned int hashCell(iPoint cell);
+
+    unsigned int getKeyFromHash(unsigned int hash);
 
     float m_gravity = 0;
     std::vector<Particle> m_particles;
-
-    std::vector<int> m_gridSize;
-    std::vector<std::vector<Particle *>> m_particleGrid;
 
     // Emscripten doesn't support std::thread for multithreading, only C-type pthread's. This will essentially be a pointer
     // to the run() function so we can actually pass it into pthread_create() in main.cpp
