@@ -270,15 +270,15 @@ std::vector<iPoint> Model::getInRangeCells(const Point &p)
     static int rows = yBounds / Particle::smRad;
     static int cols = xBounds / Particle::smRad;
 
-    std::vector<iPoint> cells(9, {0,0,0});
+    static std::vector<iPoint> cells(9, {0,0,0});
     iPoint ctr = getGridCoo(p);
-    iPoint begin = {Math::positiveMod(ctr.y - 1, rows), Math::positiveMod(ctr.x - 1, cols)};
+    iPoint begin = {Math::positiveMod(ctr.x - 1, rows), Math::positiveMod(ctr.y - 1, cols)};
 
-    for (int i = 0; i < rows; i++)
+    for (int i = 0; i < 3; i++)
     {
-        for (int j = 0; j < cols; j++)
+        for (int j = 0; j < 3; j++)
         {
-            cells.push_back({i,j}); //[j + i * rows] = {(begin.y + i) % rows, (begin.x + j) % cols};
+            cells[j + i * 3] = {(begin.x + i) % rows, (begin.y + j) % cols};
         }
     }
 
