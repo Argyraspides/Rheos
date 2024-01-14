@@ -10,7 +10,7 @@
 #include <thread>
 #include <unistd.h>
 #include <filesystem>
-
+#include <algorithm>
 #if BUILDING_WITH_EMSCRIPTEN
 #include <emscripten/emscripten.h>
 #include "emscripten_browser_clipboard.h"
@@ -195,9 +195,36 @@ void View::UI_ChangeEngineParameters()
 // Determines what the color of a fluid particle should be based on its velocity
 SDL_Color View::getParticleColor(const Particle &p)
 {
-    SDL_Color c;
-    c.r = c.g = c.b = c.a = 255;
-    return c;
+    static float velocityMin = std::numeric_limits<float>::max();
+    static float velocityMax = -std::numeric_limits<float>::max();
+    float velocity = p.vel.magnitude();
+    velocityMin = std::min(velocityMin, velocity);
+    velocityMax = std::max(velocityMax, velocity);
+
+    float mappedValue = (velocity - velocityMin) / (velocityMax - velocityMin);
+    mappedValue = std::max(0.0f, std::min(1.0f, mappedValue));
+
+    SDL_Color blue = {0, 0, 255, 255};
+    SDL_Color green = {0, 255, 0, 255};
+    SDL_Color red = {255, 0, 0, 255};
+    SDL_Color color;
+
+    if (mappedValue <= 0.5)
+    {
+        float ratio = mappedValue / 0.5f;
+        color.r = static_cast<Uint8>((1 - ratio) * blue.r + ratio * green.r);
+        color.g = static_cast<Uint8>((1 - ratio) * blue.g + ratio * green.g);
+        color.b = static_cast<Uint8>((1 - ratio) * blue.b + ratio * green.b);
+    }
+    else
+    {
+        float ratio = (mappedValue - 0.5f) / 0.5f;
+        color.r = static_cast<Uint8>((1 - ratio) * green.r + ratio * red.r);
+        color.g = static_cast<Uint8>((1 - ratio) * green.g + ratio * red.g);
+        color.b = static_cast<Uint8>((1 - ratio) * green.b + ratio * red.b);
+    }
+    color.a = 255;
+    return color;
 }
 
 void View::CleanupSDL(SDL_Renderer *renderer, SDL_Window *window)
