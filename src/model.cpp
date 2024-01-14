@@ -1,6 +1,5 @@
 #include "model.h"
 #include "engine_math.h"
-#include "omp.h"
 #include <chrono>
 #include <iostream>
 #include <algorithm>
@@ -8,7 +7,7 @@
 
 Model::Model()
 {
-    int particleCount = 400;
+    int particleCount = 2000;
     int maxColumns = 50;
 
     float separation = Particle::rad * 2;
@@ -57,23 +56,22 @@ void Model::run()
 void Model::update()
 {
 
-#pragma omp parallel for
     for (Particle &p : m_particles)
     {
         p.vel.y += m_gravity * ENGINE_TIME_STEP;
-        p.predPos = p.pos + p.vel;
+        p.predPos = p.pos + p.vel * (1.0f / 500.0f);
     }
 
+    handlePredWallCollisions();
     handleWallCollisions();
+
     updateGrid();
 
-#pragma omp parallel for
     for (Particle &p : m_particles)
     {
-        p.prop[Particle::densityIdx] = getDensity(p.pos);
+        p.prop[Particle::densityIdx] = getDensity(p.predPos);
     }
 
-#pragma omp parallel for
     for (Particle &p : m_particles)
     {
         Point pressureForce = getPressureGradient(p);
@@ -82,7 +80,6 @@ void Model::update()
             p.vel = p.vel + pressureAcceleration * ENGINE_TIME_STEP;
     }
 
-#pragma omp parallel for
     for (Particle &p : m_particles)
     {
         p.pos = p.pos + p.vel * ENGINE_TIME_STEP;
@@ -184,27 +181,22 @@ Point Model::getPressureGradient(Particle &pC)
 {
     Point pressureGrad = {0.0f, 0.0f, 0.0f};
 
-    std::vector<iPoint> inRangeCells = getInRangeCells(pC.pos);
+    std::vector<iPoint> inRangeCells = getInRangeCells(pC.predPos);
     for (int c = 0; c < inRangeCells.size(); c++)
     {
         int iterations = m_particleGridSizes[inRangeCells[c].x][inRangeCells[c].y];
         for (int i = 0; i < iterations; i++)
         {
             // Get the distance from the current particle to the point in space we want to find the gradient of
-            Particle* _pC = m_particleGrid[inRangeCells[c].x][inRangeCells[c].y][i];
-            float dist = (_pC->pos - pC.pos).magnitude();
-            Point dir;
+            Particle *_pC = m_particleGrid[inRangeCells[c].x][inRangeCells[c].y][i];
+            Point dir = (_pC->predPos - pC.predPos);
+            float dist = dir.magnitude();
 
             // If the particles are directly on top of each other we can just choose a random direction
             if (dist == 0)
             {
                 dir = {static_cast<float>(rand()) / 1.0f + 0.01f, static_cast<float>(rand()) / 1.0f + 0.01f};
                 dist = dir.magnitude();
-            }
-            else
-            {
-                // The actual direction vector
-                dir = (_pC->pos - pC.pos) / dist;
             }
 
             dir.normalize();
@@ -259,6 +251,29 @@ void Model::handleWallCollisions()
     }
 }
 
+void Model::handlePredWallCollisions()
+{
+    for (Particle &particle : m_particles)
+    {
+        if (xBounds - particle.predPos.x <= Particle::rad)
+        {
+            particle.predPos.x = xBounds - Particle::rad;
+        }
+        if (particle.predPos.x <= Particle::rad)
+        {
+            particle.predPos.x = Particle::rad;
+        }
+        if (yBounds - particle.predPos.y <= Particle::rad)
+        {
+            particle.predPos.y = yBounds - Particle::rad;
+        }
+        if (particle.predPos.y <= Particle::rad)
+        {
+            particle.predPos.y = Particle::rad;
+        }
+    }
+}
+
 iPoint Model::getGridCoo(const Point &loc)
 {
     return iPoint(loc.y / Particle::smRad, loc.x / Particle::smRad, 0);
@@ -270,7 +285,7 @@ std::vector<iPoint> Model::getInRangeCells(const Point &p)
     static int rows = yBounds / Particle::smRad;
     static int cols = xBounds / Particle::smRad;
 
-    static std::vector<iPoint> cells(9, {0,0,0});
+    static std::vector<iPoint> cells(9, {0, 0, 0});
     iPoint ctr = getGridCoo(p);
     iPoint begin = {Math::positiveMod(ctr.x - 1, rows), Math::positiveMod(ctr.y - 1, cols)};
 
@@ -301,7 +316,7 @@ void Model::updateGrid()
 
     for (int i = 0; i < m_particles.size(); i++)
     {
-        iPoint gc = getGridCoo(m_particles[i].pos);
+        iPoint gc = getGridCoo(m_particles[i].predPos);
         Particle *ptr = &m_particles[i];
         m_particleGrid[gc.x][gc.y][m_particleGridSizes[gc.x][gc.y]++] = ptr;
     }
@@ -329,5 +344,4 @@ void Model::initializeGrid()
             }
         }
     }
-
 }

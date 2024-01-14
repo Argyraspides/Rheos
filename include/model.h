@@ -28,6 +28,8 @@ public:
     // Resolves collisions of the particle against the wall
     void handleWallCollisions();
 
+    void handlePredWallCollisions();
+
     // Returns the net gradient at a point in space
     Point getNetGradient(const Point &v, const int &propertyIndex);
 
@@ -52,7 +54,7 @@ public:
     std::vector<iPoint> getInRangeCells(const Point &p);
 
 
-    float m_gravity = 0;
+    float m_gravity = 250;
     std::vector<Particle> m_particles;
     std::vector<std::vector<std::vector<Particle*>>> m_particleGrid;
     std::vector<std::vector<int>> m_particleGridSizes;
@@ -70,5 +72,5 @@ public:
     float ENGINE_TIME_STEP = 1.0f / (float)ENGINE_POLLING_RATE;
     double m_time;
 
-    int xBounds = 1280, yBounds = 720;
+    int xBounds = 1920, yBounds = 1080;
 };

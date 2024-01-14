@@ -2,6 +2,6 @@
 
 float Particle::mass = 1.0f;
 float Particle::rad = 5.0f;
-float Particle::smRad = rad * 8.0f;
-float Particle::restingDensity = 2.75f;
-float Particle::pressureScaler = 500.0f;
+float Particle::smRad = rad * 4.0f;
+float Particle::restingDensity = 5.2f;
+float Particle::pressureScaler = 50.0f;

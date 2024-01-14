@@ -21,7 +21,7 @@ cmake -DMY_COMPILER=emcc ..
 cmake --build .
 
 # Grab template HTML file, copy to this directory
-source_file="../out/Telos.html"
+source_file="../out/Rheos.html"
 cp "$source_file" .
 
-emrun Telos.html
+emrun Rheos.html
