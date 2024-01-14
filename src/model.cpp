@@ -64,6 +64,7 @@ void Model::update()
         p.predPos = p.pos + p.vel;
     }
 
+    handleWallCollisions();
     updateGrid();
 
 #pragma omp parallel for
@@ -77,7 +78,8 @@ void Model::update()
     {
         Point pressureForce = getPressureGradient(p);
         Point pressureAcceleration = pressureForce / p.prop[Particle::densityIdx];
-        p.vel = p.vel + pressureAcceleration * ENGINE_TIME_STEP;
+        if (p.prop[Particle::densityIdx] > 0)
+            p.vel = p.vel + pressureAcceleration * ENGINE_TIME_STEP;
     }
 
 #pragma omp parallel for
@@ -85,8 +87,6 @@ void Model::update()
     {
         p.pos = p.pos + p.vel * ENGINE_TIME_STEP;
     }
-
-    handleWallCollisions();
 }
 
 // Calculates the influence a particle has at a point 'dist' away from the particles center,
@@ -106,11 +106,17 @@ float Model::smoothingKernel(float rad, float dist)
 float Model::getDensity(const Point &p)
 {
     float density = 0.0f;
-    for (int i = 0; i < m_particles.size(); i++)
+    std::vector<iPoint> inRangeCells = getInRangeCells(p);
+    for (int c = 0; c < inRangeCells.size(); c++)
     {
-        float dist = Math::dist(p, m_particles[i].pos);
-        density += Particle::mass * smoothingKernel(Particle::smRad, dist);
+        int iterations = m_particleGridSizes[inRangeCells[c].x][inRangeCells[c].y];
+        for (int i = 0; i < iterations; i++)
+        {
+            float dist = Math::dist(p, m_particleGrid[inRangeCells[c].x][inRangeCells[c].y][i]->pos);
+            density += Particle::mass * smoothingKernel(Particle::smRad, dist);
+        }
     }
+
     return density;
 }
 
@@ -177,33 +183,41 @@ Point Model::getNetGradient(const Point &v, const int &propertyIndex)
 Point Model::getPressureGradient(Particle &pC)
 {
     Point pressureGrad = {0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < m_particles.size(); i++)
+
+    std::vector<iPoint> inRangeCells = getInRangeCells(pC.pos);
+    for (int c = 0; c < inRangeCells.size(); c++)
     {
-        // Get the distance from the current particle to the point in space we want to find the gradient of
-        float dist = (m_particles[i].pos - pC.pos).magnitude();
-        Point dir;
-
-        // If the particles are directly on top of each other we can just choose a random direction
-        if (dist == 0)
+        int iterations = m_particleGridSizes[inRangeCells[c].x][inRangeCells[c].y];
+        for (int i = 0; i < iterations; i++)
         {
-            dir = {static_cast<float>(rand()) / 1.0f + 0.01f, static_cast<float>(rand()) / 1.0f + 0.01f};
-            dist = dir.magnitude();
+            // Get the distance from the current particle to the point in space we want to find the gradient of
+            Particle* _pC = m_particleGrid[inRangeCells[c].x][inRangeCells[c].y][i];
+            float dist = (_pC->pos - pC.pos).magnitude();
+            Point dir;
+
+            // If the particles are directly on top of each other we can just choose a random direction
+            if (dist == 0)
+            {
+                dir = {static_cast<float>(rand()) / 1.0f + 0.01f, static_cast<float>(rand()) / 1.0f + 0.01f};
+                dist = dir.magnitude();
+            }
+            else
+            {
+                // The actual direction vector
+                dir = (_pC->pos - pC.pos) / dist;
+            }
+
+            dir.normalize();
+
+            // The rate of change of the property at this point
+            float slope = getSmoothedKernelDerivative(Particle::smRad, dist);
+            // Density of the current particle
+            float density = _pC->prop[Particle::densityIdx];
+
+            float sharedP = getSharedPressure(density, pC.prop[Particle::densityIdx]);
+            if (density > 0)
+                pressureGrad = pressureGrad - dir * sharedP * slope * Particle::mass / density;
         }
-        else
-        {
-            // The actual direction vector
-            dir = (m_particles[i].pos - pC.pos) / dist;
-        }
-
-        dir.normalize();
-
-        // The rate of change of the property at this point
-        float slope = getSmoothedKernelDerivative(Particle::smRad, dist);
-        // Density of the current particle
-        float density = m_particles[i].prop[Particle::densityIdx];
-
-        float sharedP = getSharedPressure(density, pC.prop[Particle::densityIdx]);
-        pressureGrad = pressureGrad - dir * sharedP * slope * Particle::mass / m_particles[i].prop[Particle::densityIdx];
     }
     return pressureGrad;
 }
@@ -247,13 +261,34 @@ void Model::handleWallCollisions()
 
 iPoint Model::getGridCoo(const Point &loc)
 {
-    return iPoint(loc.x / Particle::smRad - 1, loc.y / Particle::smRad - 1, 0);
+    return iPoint(loc.y / Particle::smRad, loc.x / Particle::smRad, 0);
+}
+
+std::vector<iPoint> Model::getInRangeCells(const Point &p)
+{
+
+    static int rows = yBounds / Particle::smRad;
+    static int cols = xBounds / Particle::smRad;
+
+    std::vector<iPoint> cells(9, {0,0,0});
+    iPoint ctr = getGridCoo(p);
+    iPoint begin = {Math::positiveMod(ctr.y - 1, rows), Math::positiveMod(ctr.x - 1, cols)};
+
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            cells.push_back({i,j}); //[j + i * rows] = {(begin.y + i) % rows, (begin.x + j) % cols};
+        }
+    }
+
+    return cells;
 }
 
 void Model::updateGrid()
 {
 
-    static int rows = xBounds / Particle::smRad;
+    static int rows = yBounds / Particle::smRad;
     static int cols = xBounds / Particle::smRad;
 
     for (int i = 0; i < rows; i++)
@@ -267,13 +302,14 @@ void Model::updateGrid()
     for (int i = 0; i < m_particles.size(); i++)
     {
         iPoint gc = getGridCoo(m_particles[i].pos);
-        m_particleGrid[gc.x][gc.y][m_particleGridSizes[gc.x][gc.y]++] = &m_particles[i];
+        Particle *ptr = &m_particles[i];
+        m_particleGrid[gc.x][gc.y][m_particleGridSizes[gc.x][gc.y]++] = ptr;
     }
 }
 
 void Model::initializeGrid()
 {
-    static int rows = xBounds / Particle::smRad;
+    static int rows = yBounds / Particle::smRad;
     static int cols = xBounds / Particle::smRad;
 
     for (int i = 0; i < rows; i++)
@@ -293,4 +329,5 @@ void Model::initializeGrid()
             }
         }
     }
+
 }

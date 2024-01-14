@@ -49,6 +49,8 @@ public:
     // Updates the particle grid
     void updateGrid();
 
+    std::vector<iPoint> getInRangeCells(const Point &p);
+
 
     float m_gravity = 0;
     std::vector<Particle> m_particles;

@@ -12,7 +12,6 @@ namespace Math
     static Point origin = {0, 0, 0};
     static Point defaultPt = origin;
 
-
     // Calculates the distance between two points
     static double dist(const Point &p1, const Point &p2)
     {
@@ -20,6 +19,11 @@ namespace Math
             pow((p1.x - p2.x), 2) +
             pow((p1.y - p2.y), 2) +
             pow((p1.z - p2.z), 2));
+    }
+
+    static int positiveMod(const int &a, const int &b)
+    {
+        return (a % b + b) % b;
     }
 
 }
