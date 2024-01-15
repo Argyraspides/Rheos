@@ -58,10 +58,14 @@ public:
 
     std::vector<iPoint> getInRangeCells(const Point &p);
 
+    std::vector<Particle>& getParticles();
+
     void applyForce(Particle &p, Point dir);
 
     float m_gravity = 250;
     std::vector<Particle> m_particles;
+    pthread_mutex_t m_particlesMutex;                      
+
     std::vector<std::vector<std::vector<Particle *>>> m_particleGrid;
     std::vector<std::vector<int>> m_particleGridSizes;
 

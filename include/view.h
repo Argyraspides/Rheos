@@ -37,10 +37,10 @@ public:
         return nullptr;
     }
     void Render(); // SETS UP SDL2, DEAR IMGUI, AND BEGINS THE RENDER & INPUT LOOPS
-    void Render_Model(SDL_Renderer* renderer);
-    void Render_Circle(SDL_Renderer* renderer, int rad, int xPos, int yPos, SDL_Color c);
+    void Render_Model(SDL_Renderer *renderer);
+    void Render_Circle(SDL_Renderer *renderer, int rad, int xPos, int yPos, SDL_Color c);
 
-
+    bool m_menuOpen;
     void UI_ConstructMenuModule();
     void UI_ChangeEngineParameters();
 
@@ -52,13 +52,15 @@ public:
 
     void SDL_EventHandlingLoop();               // LOOP FOR SDL2 INPUTS (RUNS IN SEPARATE THREAD FROM IMGUI)
     void SDL_ViewportHandler(SDL_Event &event); // ADD FUNCTIONS INTO THIS FUNCTION THAT HANDLES DIFFERENT INPUTS
+    float m_forceStrength = -250.0f;
+    float m_forceRadius = 125.0f;
     void SDL_LiquidForce(SDL_Event &event);
-
 
     Controller *m_controller; // CONTROLLER INTERFACE TO MANIPULATE AND/OR RETRIEVE DATA FROM THE MODEL
 
     // SDL BOILERPLATE TO SET UP THE WINDOW AND RENDERER
     int SCREEN_WIDTH = 1920, SCREEN_HEIGHT = 1080;
+    float m_menuWidth = SCREEN_WIDTH * 0.33;
     int VIEW_POLLING_RATE = 60;
     int VIEW_INPUT_POLLING_RATE = 60;
     ImVec4 m_clearColor = TELOS_IMGUI_DARKGRAY;

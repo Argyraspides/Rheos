@@ -81,7 +81,6 @@ void View::Render()
 
         if (elapsed >= frameDuration)
         {
-            // Handle events such as keyboard/mouse inputs, resizing the window, etc
             SDL_Event event;
             while (SDL_PollEvent(&event))
             {
@@ -94,10 +93,12 @@ void View::Render()
                 if (_event.type == SDL_QUIT)
                 {
                     done = true;
+                    m_controller->ShutModel();
                 }
                 if (_event.type == SDL_WINDOWEVENT && _event.window.event == SDL_WINDOWEVENT_CLOSE && _event.window.windowID == SDL_GetWindowID(window))
                 {
                     done = true;
+                    m_controller->ShutModel();
                 }
                 if (m_inputDone)
                     GetFrameEvents().clear();
@@ -158,7 +159,9 @@ void View::UI_ConstructMenuModule()
     ImGui::Begin("Menu");
 
     ImGui::SetWindowPos(ImVec2(0, 0));
-    ImGui::SetWindowSize(ImVec2(SCREEN_WIDTH * 0.33, ImGui::GetIO().DisplaySize.y));
+    ImGui::SetWindowSize(ImVec2(m_menuWidth, ImGui::GetIO().DisplaySize.y));
+    m_menuOpen = !ImGui::IsWindowCollapsed();
+
     UI_ChangeEngineParameters();
 
     ImGui::End();
@@ -184,6 +187,9 @@ void View::UI_ChangeEngineParameters()
     {
         m_controller->UpdateModel_ChangeRestingDensity(restingDensity);
     }
+
+    ImGui::SliderFloat("Mouse Force Strength", &m_forceStrength, -500, 500);
+    ImGui::SliderFloat("Mouse Force Radius", &m_forceRadius, 0, 750);
 }
 
 // Determines what the color of a fluid particle should be based on its velocity
@@ -198,10 +204,13 @@ SDL_Color View::getParticleColor(const Particle &p)
 
     c.r = std::min(255, (int)velocity);
     c.b = std::max(0, 255 - (int)velocity);
-    int gF = -0.25*(velocity - 35)*(velocity - 35) + 255;
-    if(gF < 0) c.g = 0;
-    else if(gF > 255) c.g = 255;
-    else c.g = gF;
+    int gF = -0.25 * (velocity - 35) * (velocity - 35) + 255;
+    if (gF < 0)
+        c.g = 0;
+    else if (gF > 255)
+        c.g = 255;
+    else
+        c.g = gF;
     c.a = 255;
 
     return c;
@@ -247,6 +256,7 @@ ImGuiIO &View::SetupImGui()
 
 void View::SDL_ViewportHandler(SDL_Event &event)
 {
+    SDL_LiquidForce(event);
 }
 
 void View::SDL_EventHandlingLoop()
@@ -274,13 +284,24 @@ void View::SDL_EventHandlingLoop()
 
 void View::SDL_LiquidForce(SDL_Event &event)
 {
+
     int mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
-    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_RIGHT)
+
+    if (m_menuOpen && mouseX < m_menuWidth)
+        return;
+
+    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
     {
-        const std::vector<Particle> &particles = m_controller->RetrieveModel_GetParticles();
-        for (Particle p : particles)
+        while (true)
         {
+            SDL_PollEvent(&event);
+            SDL_GetMouseState(&mouseX, &mouseY);
+            m_controller->UpdateModel_ApplyFluidForce({(float)mouseX, (float)mouseY, 0}, m_forceRadius, m_forceStrength);
+            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT)
+            {
+                break;
+            }
         }
     }
 }

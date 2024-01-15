@@ -8,9 +8,11 @@ Model::Model()
 {
     int particleCount = 3000;
     int maxColumns = 70;
-
     float separation = Particle::rad * 2;
+
     m_gravity = 300;
+
+    pthread_mutex_init(&m_particlesMutex, nullptr);
 
     int width = maxColumns * separation;
     int height = (particleCount / maxColumns) * separation;
@@ -19,19 +21,18 @@ Model::Model()
     int yCenterOffset = (yBounds - height) / 2;
 
     m_particles.reserve(particleCount);
-    // Initialize all the particles in a grid
     for (int i = 0; i < particleCount; i++)
     {
         float xPos = (i % maxColumns) * separation + xCenterOffset;
         float yPos = (i / maxColumns) * separation + yCenterOffset;
         m_particles.push_back(Particle({xPos, yPos}, {xPos, yPos}, {0, 0}));
     }
-
     initializeGrid();
 }
 
 Model::~Model()
 {
+    pthread_mutex_destroy(&m_particlesMutex);
 }
 
 // Begins the engine
@@ -57,7 +58,6 @@ void Model::run()
 
 void Model::update()
 {
-
     for (Particle &p : m_particles)
     {
         p.vel.y += m_gravity * ENGINE_TIME_STEP;
@@ -264,7 +264,7 @@ std::vector<iPoint> Model::getInRangeCells(const Point &p)
 
 void Model::applyForce(Particle &p, Point dir)
 {
-
+    p.vel = p.vel + dir;
 }
 
 void Model::updateGrid()
@@ -311,4 +311,10 @@ void Model::initializeGrid()
             }
         }
     }
+}
+
+std::vector<Particle> &Model::getParticles()
+{
+    pthread_mutex_lock(&m_particlesMutex);
+    return this->m_particles;
 }
