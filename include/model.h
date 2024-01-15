@@ -3,6 +3,11 @@
 #include "particle.h"
 #include "cartesian.h"
 #include <vector>
+#include <cmath>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <random>
 
 class Model
 {
@@ -53,10 +58,11 @@ public:
 
     std::vector<iPoint> getInRangeCells(const Point &p);
 
+    void applyForce(Particle &p, Point dir);
 
     float m_gravity = 250;
     std::vector<Particle> m_particles;
-    std::vector<std::vector<std::vector<Particle*>>> m_particleGrid;
+    std::vector<std::vector<std::vector<Particle *>>> m_particleGrid;
     std::vector<std::vector<int>> m_particleGridSizes;
 
     // Emscripten doesn't support std::thread for multithreading, only C-type pthread's. This will essentially be a pointer

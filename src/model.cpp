@@ -3,14 +3,14 @@
 #include <chrono>
 #include <iostream>
 #include <algorithm>
-#include <cmath>
 
 Model::Model()
 {
-    int particleCount = 2000;
-    int maxColumns = 50;
+    int particleCount = 3000;
+    int maxColumns = 70;
 
     float separation = Particle::rad * 2;
+    m_gravity = 300;
 
     int width = maxColumns * separation;
     int height = (particleCount / maxColumns) * separation;
@@ -38,13 +38,15 @@ Model::~Model()
 void Model::run()
 {
 
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
     auto start = std::chrono::high_resolution_clock::now();
 
     while (m_isRunning)
     {
         auto end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        if (duration >= ENGINE_TIME_STEP * 1000.0f)
+        if (duration >= ENGINE_TIME_STEP * 10.0f)
         {
             m_time += ENGINE_TIME_STEP;
             update();
@@ -69,14 +71,14 @@ void Model::update()
 
     for (Particle &p : m_particles)
     {
-        p.prop[Particle::densityIdx] = getDensity(p.predPos);
+        p.density = getDensity(p.predPos);
     }
 
     for (Particle &p : m_particles)
     {
         Point pressureForce = getPressureGradient(p);
-        Point pressureAcceleration = pressureForce / p.prop[Particle::densityIdx];
-        if (p.prop[Particle::densityIdx] > 0)
+        Point pressureAcceleration = pressureForce / p.density;
+        if (p.density > 0)
             p.vel = p.vel + pressureAcceleration * ENGINE_TIME_STEP;
     }
 
@@ -94,7 +96,7 @@ float Model::smoothingKernel(float rad, float dist)
     // y = (r - x)^2 / (πr^4 / 6)
     if (dist > rad)
         return 0;
-    float vol = (M_PI * pow(rad, 4.0f)) / 6.0f;
+    float vol = (M_PI * rad * rad * rad * rad) * 0.1666666666666f;
     float delta = rad - dist;
     return (delta * delta) / vol;
 }
@@ -125,55 +127,14 @@ float Model::densityToPressure(float density)
     return pressure;
 }
 
-// Gets an arbitrary scalar property (density, pressure, etc)
-float Model::getScalarProperty(const Point &p, int propertyIdx)
-{
-    float A = 0.0f;
-
-    for (int i = 0; i < m_particles.size(); i++)
-    {
-        float dist = Math::dist(m_particles[i].pos, p);
-        float influence = smoothingKernel(dist, Particle::smRad);
-        float density = m_particles[i].prop[propertyIdx];
-        A += m_particles[i].prop[propertyIdx] * Particle::mass / density * influence;
-    }
-
-    return A;
-}
-
 // Gets the derivative of the smoothed kernel function
 float Model::getSmoothedKernelDerivative(float rad, float dist)
 {
     if (dist >= rad)
         return 0;
 
-    float scale = 12.0f / (pow(rad, 4) * M_PI);
+    float scale = 12.0f / (rad * rad * rad * rad * M_PI);
     return (dist - rad) * scale;
-}
-
-// Gets the net gradient at a particular point in space, of a particular scalar property
-Point Model::getNetGradient(const Point &v, const int &propertyIndex)
-{
-    Point totalGradient = {0, 0};
-    for (int i = 0; i < m_particles.size(); i++)
-    {
-        Point direction = m_particles[i].pos - v;
-        // If two particles are directly on top of each other, or we are comparing a particle to itself,
-        // we don't want divide by zero errors. In this case we can just take a random direction
-        if (direction == Point(0, 0))
-            direction = {1, 1};
-
-        float dist = direction.magnitude();
-        direction.normalize();
-
-        float gradient = getSmoothedKernelDerivative(Particle::smRad, dist);
-        // Get the current density stored in the particle
-        float density = m_particles[i].prop[Particle::densityIdx];
-
-        Point mult = direction * m_particles[i].prop[propertyIndex] * gradient * Particle::mass;
-        totalGradient = totalGradient + mult / density;
-    }
-    return totalGradient;
 }
 
 // Gets the pressure gradient of a particle
@@ -195,7 +156,7 @@ Point Model::getPressureGradient(Particle &pC)
             // If the particles are directly on top of each other we can just choose a random direction
             if (dist == 0)
             {
-                dir = {static_cast<float>(rand()) / 1.0f + 0.01f, static_cast<float>(rand()) / 1.0f + 0.01f};
+                dir = {static_cast<float>(std::rand()) / 1.0f + 0.01f, static_cast<float>(std::rand()) / 1.0f + 0.01f};
                 dist = dir.magnitude();
             }
 
@@ -204,9 +165,10 @@ Point Model::getPressureGradient(Particle &pC)
             // The rate of change of the property at this point
             float slope = getSmoothedKernelDerivative(Particle::smRad, dist);
             // Density of the current particle
-            float density = _pC->prop[Particle::densityIdx];
+            float density = _pC->density;
 
-            float sharedP = getSharedPressure(density, pC.prop[Particle::densityIdx]);
+            float sharedP = getSharedPressure(density, pC.density);
+
             if (density > 0)
                 pressureGrad = pressureGrad - dir * sharedP * slope * Particle::mass / density;
         }
@@ -298,6 +260,11 @@ std::vector<iPoint> Model::getInRangeCells(const Point &p)
     }
 
     return cells;
+}
+
+void Model::applyForce(Particle &p, Point dir)
+{
+
 }
 
 void Model::updateGrid()

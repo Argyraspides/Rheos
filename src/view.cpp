@@ -169,7 +169,6 @@ void View::UI_ChangeEngineParameters()
     static float gravity = m_controller->RetrieveModel_GetGravity();
     static float restingDensity = m_controller->RetrieveModel_GetRestingDensity();
     static float pressureScaler = m_controller->RetrieveModel_GetPressureScaler();
-    static float radialInfluence = m_controller->RetrieveModel_GetRadialInfluence();
 
     if (ImGui::SliderFloat("Gravity", &gravity, 0, 500))
     {
@@ -185,46 +184,27 @@ void View::UI_ChangeEngineParameters()
     {
         m_controller->UpdateModel_ChangeRestingDensity(restingDensity);
     }
-
-    if (ImGui::SliderFloat("Radial Influence", &radialInfluence, 1, 500))
-    {
-        m_controller->UpdateModel_ChangeRadialInfluence(radialInfluence);
-    }
 }
 
 // Determines what the color of a fluid particle should be based on its velocity
 SDL_Color View::getParticleColor(const Particle &p)
 {
-    static float velocityMin = std::numeric_limits<float>::max();
-    static float velocityMax = -std::numeric_limits<float>::max();
     float velocity = p.vel.magnitude();
-    velocityMin = std::min(velocityMin, velocity);
-    velocityMax = std::max(velocityMax, velocity);
+    SDL_Color c;
 
-    float mappedValue = (velocity - velocityMin) / (velocityMax - velocityMin);
-    mappedValue = std::max(0.0f, std::min(1.0f, mappedValue));
+    // r = x + 255
+    // b = -x + 255
+    // g = -0.25(x-35)^2 + 255
 
-    SDL_Color blue = {0, 0, 255, 255};
-    SDL_Color green = {0, 255, 0, 255};
-    SDL_Color red = {255, 0, 0, 255};
-    SDL_Color color;
+    c.r = std::min(255, (int)velocity);
+    c.b = std::max(0, 255 - (int)velocity);
+    int gF = -0.25*(velocity - 35)*(velocity - 35) + 255;
+    if(gF < 0) c.g = 0;
+    else if(gF > 255) c.g = 255;
+    else c.g = gF;
+    c.a = 255;
 
-    if (mappedValue <= 0.5)
-    {
-        float ratio = mappedValue / 0.5f;
-        color.r = static_cast<Uint8>((1 - ratio) * blue.r + ratio * green.r);
-        color.g = static_cast<Uint8>((1 - ratio) * blue.g + ratio * green.g);
-        color.b = static_cast<Uint8>((1 - ratio) * blue.b + ratio * green.b);
-    }
-    else
-    {
-        float ratio = (mappedValue - 0.5f) / 0.5f;
-        color.r = static_cast<Uint8>((1 - ratio) * green.r + ratio * red.r);
-        color.g = static_cast<Uint8>((1 - ratio) * green.g + ratio * red.g);
-        color.b = static_cast<Uint8>((1 - ratio) * green.b + ratio * red.b);
-    }
-    color.a = 255;
-    return color;
+    return c;
 }
 
 void View::CleanupSDL(SDL_Renderer *renderer, SDL_Window *window)
@@ -249,7 +229,7 @@ ImGuiIO &View::SetupImGui()
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
-    io.FontGlobalScale = 1.25f;
+    io.FontGlobalScale = 0.75f;
 
     std::string fontPathS;
 
@@ -288,6 +268,19 @@ void View::SDL_EventHandlingLoop()
             }
             m_inputDone = true;
             startTime = std::chrono::high_resolution_clock::now();
+        }
+    }
+}
+
+void View::SDL_LiquidForce(SDL_Event &event)
+{
+    int mouseX, mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_RIGHT)
+    {
+        const std::vector<Particle> &particles = m_controller->RetrieveModel_GetParticles();
+        for (Particle p : particles)
+        {
         }
     }
 }
